@@ -10,6 +10,7 @@ const LocalStrategy = require("passport-local").Strategy;
 const rateLimit = require("express-rate-limit");
 const cors = require("cors");
 const { exec } = require("child_process");
+const jwt = require('jsonwebtoken')
 
 var get_ip = require("ipware")().get_ip;
 var requestCountry = require("request-country");
@@ -45,10 +46,10 @@ passport.use(
   new LocalStrategy(
     { usernameField: "username", passReqToCallback: true },
     (req, username, password, done) => {
-      if (username) {
+      if (!username) {
         return done(Error("Username is not provided"), null);
       }
-      if (password) {
+      if (!password) {
         return done(Error("Password is not provided"), null);
       }
 
@@ -88,6 +89,11 @@ passport.use(
             return done(Error("Error while loging in - " + stderr), null);
           }
 
+          if(!stdout) {
+            console.log(stdout);
+            return done(Error("Error while loging in: User Not Found - " + stdout), null);
+          }
+
           const ubunntuHashedPass = stdout;
 
           exec(
@@ -105,11 +111,20 @@ passport.use(
                 return done(Error("Error while loging in - " + stderr), null);
               }
 
-              const ubuntuSalt = stdout;
 
+              let ubuntuSalt = stdout.replace('\n','');
+              // console.log(ubuntuSalt)
+              let command = `mkpasswd -m sha-512 -S ${ubuntuSalt} -s ${password}`;
+              // console.log(command)
               exec(
-                `mkpasswd -m sha-512 -S ${ubuntuSalt} -s ${password}`,
+                command
+                ,
                 (error, stdout, stderr) => {
+
+                  // console.log(password)
+                // console.log(ubunntuHashedPass)
+                // console.log(stdout)
+
                   if (stdout == ubunntuHashedPass) {
                     return done(null, { username: username });
                   } else {
