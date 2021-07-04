@@ -20,10 +20,11 @@ const UBUNTU_PASS = "marzie78";
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(passport.session());
+// app.use(passport.session());
 
 var JWTstrategy = require("passport-jwt").Strategy,
   ExtractJWT = require("passport-jwt").ExtractJwt;
+
 passport.use(
   new JWTstrategy(
     {
@@ -124,13 +125,87 @@ passport.use(
   )
 );
 
-var Log = function (user) {
-  this.username = user.username;
-  this.password = user.password;
-  this.ip = user.ip;
-  this.country = user.country;
-  this.date = new Date();
-};
+app.get("/log/combos", (req, res) => {
+  db.serialize(function () {
+    db.all(
+      "select * from (select username, password, count(password) AS count from log group by 1,2 ORDER BY COUNT(username) DESC)",
+      function (err, data) {
+        if (err) {
+          return console.log(err.message);
+        }
+        res.json({ data: data });
+      }
+    );
+  });
+});
+
+app.get("/log/username", (req, res) => {
+  db.serialize(function () {
+    db.all(
+      "select * from (select username, count(*) as count from log group by 1 ORDER BY COUNT(username) DESC)",
+      function (err, data) {
+        if (err) {
+          return console.log(err.message);
+        }
+        res.json({ data: data });
+      }
+    );
+  });
+});
+
+app.get("/log/password", (req, res) => {
+  db.serialize(function () {
+    db.all(
+      "select * from (select password, count(*) as count from log group by 1 ORDER BY COUNT(username) DESC)",
+      function (err, data) {
+        if (err) {
+          return console.log(err.message);
+        }
+        res.json({ data: data });
+      }
+    );
+  });
+});
+
+app.get("/log/total", (req, res) => {
+  db.serialize(function () {
+    db.all("SELECT count(*) FROM log", function (err, data) {
+      if (err) {
+        return console.log(err.message);
+      }
+      res.json({ data: data });
+    });
+  });
+});
+
+app.get("/log/last", (req, res) => {
+  db.serialize(function () {
+    db.all("SELECT * FROM log ORDER BY id DESC LIMIT 1;", function (err, data) {
+      if (err) {
+        return console.log(err.message);
+      }
+      res.json({ data: data });
+    });
+  });
+});
+
+app.get(
+  "/log/country",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    db.serialize(function () {
+      db.all(
+        "select * from (select country, count(*) as count from log group by 1 ORDER BY COUNT(country) DESC)",
+        function (err, data) {
+          if (err) {
+            return console.log(err.message);
+          }
+          res.json({ data: data });
+        }
+      );
+    });
+  }
+);
 
 app.get("/create", (req, res) => {
   let logItem = [
