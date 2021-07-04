@@ -207,6 +207,45 @@ app.get(
   }
 );
 
+app.post("/login", function (req, res, next) {
+  passport.authenticate("local", async (err, user, info) => {
+    try {
+      if (err || !user) {
+        return res.status(401).send({
+          error: true,
+          message: {
+            text: err.message
+              ? err.message
+              : "Username or Password is incorrect",
+            details: null,
+          },
+        });
+      }
+      req.login(user, { session: false }, async (error) => {
+        if (error) return next(error);
+
+        const body = { username: user.username };
+        const token = jwt.sign({ user: body }, "TOP_SECRET");
+
+        const userToSend = { ...user };
+
+        return res.json({ ...userToSend, token });
+      });
+    } catch (error) {
+      res.status(401).send({
+        error: true,
+        message: {
+          text: error.message
+            ? error.message
+            : "Username or Password is incorrect",
+          details: null,
+        },
+      });
+      // return next(error);
+    }
+  })(req, res, next);
+});
+
 app.get("/create", (req, res) => {
   let logItem = [
     "username",
