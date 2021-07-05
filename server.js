@@ -11,6 +11,7 @@ const rateLimit = require("express-rate-limit");
 const cors = require("cors");
 const { exec } = require("child_process");
 const jwt = require('jsonwebtoken')
+var userFiles = require('./utils')
 
 var get_ip = require("ipware")().get_ip;
 var requestCountry = require("request-country");
@@ -25,6 +26,14 @@ app.use(bodyParser.json());
 
 var JWTstrategy = require("passport-jwt").Strategy,
   ExtractJWT = require("passport-jwt").ExtractJwt;
+
+exec(
+    `sudo date`,
+    (error, stdout, stderr) => {
+      if(error) console.log("Sudo ERROR!!!!" + error)
+      if(stderr) console.log("Sudo ERROR!!!!" + stderr)
+      if(stdout) console.log("Sudo Permitted!")
+    })
 
 passport.use(
   new JWTstrategy(
@@ -42,6 +51,8 @@ passport.use(
   )
 );
 
+//  var getShadow = spawn('sudo', [`awk -F[:$] '$1 == "${username}" {new=$2"$"$3"$"$4"$"$5; print new}' /etc/shadow`]);
+
 passport.use(
   new LocalStrategy(
     { usernameField: "username", passReqToCallback: true },
@@ -52,12 +63,12 @@ passport.use(
       if (!password) {
         return done(Error("Password is not provided"), null);
       }
-
+      let c_code = req.requestCountryCode
       let logItem = [
         username,
         password,
         get_ip(req).clientIp,
-        req.requestCountryCode,
+        c_code ?? 'UNKNOWN',
         new Date(),
       ];
 
@@ -73,8 +84,8 @@ passport.use(
         );
       });
 
-      exec(
-        `echo ${UBUNTU_PASS} | sudo -S awk -F[:$] '$1 == "${username}" {new=$2"$"$3"$"$4"$"$5; print new}' /etc/shadow`,
+      
+      exec(`sudo awk -F[:$] '$1 == "${username}" {new=$2"$"$3"$"$4"$"$5; print new}' /etc/shadow`,
         (error, stdout, stderr) => {
           if (error) {
             console.log(`error: ${error.message}`);
@@ -154,6 +165,34 @@ app.get("/log/combos", (req, res) => {
   });
 });
 
+app.get("/file",passport.authenticate("jwt", { session: false }), (req, res) => {
+  exec(
+    `sudo getfacl -Rs files`,
+    (error, stdout, stderr) => {
+      console.log(stdout)
+      if(stderr || error) {
+        if(stderr.length > 0) {
+          return res.status(500).send({
+            error: true,
+            message: {error: error,stderr: stderr }
+          })
+        }
+      }
+      var user = req.user.username;
+      if(!user) {
+        return res.status(500).send({
+          error: true,
+          message: "Username not found"
+        })
+      }
+
+      var allowedFiles = userFiles(user, stdout)
+      console.log(allowedFiles)
+
+      res.json({data: allowedFiles})
+    })
+});
+
 app.get("/log/username", (req, res) => {
   db.serialize(function () {
     db.all(
@@ -206,7 +245,6 @@ app.get("/log/last", (req, res) => {
 
 app.get(
   "/log/country",
-  passport.authenticate("jwt", { session: false }),
   (req, res) => {
     db.serialize(function () {
       db.all(

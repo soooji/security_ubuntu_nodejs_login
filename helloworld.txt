@@ -1,0 +1,18 @@
+# file: files/test.txt
+# owner: parallels
+# group: parallels
+user::rw-
+user:sooji:r--
+group::rw-
+mask::rw-
+other::r--
+
+# file: files/cc.txt
+# owner: parallels
+# group: parallels
+user::rw-
+user:marzie1:r--
+user:sooji:r--
+group::rw-
+mask::rw-
+other::r--
