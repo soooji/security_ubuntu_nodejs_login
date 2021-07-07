@@ -42,3 +42,8 @@ function files() {
 }
 
 files();
+
+function logout() {
+  localStorage.clear();
+  window.location = '/login'
+}
