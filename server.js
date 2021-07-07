@@ -26,6 +26,11 @@ app.use(express.static(htmlPath));
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+app.use(requestCountry.middleware({
+  attributeName: 'requestCountryCode', // default is 'requestCountryCode'
+  privateIpCountry: 'PRIVATE' // Result for private network IPs
+}));
 // app.use(passport.session());
 
 var JWTstrategy = require("passport-jwt").Strategy,
