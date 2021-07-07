@@ -12,6 +12,7 @@ const cors = require("cors");
 const { exec } = require("child_process");
 const jwt = require('jsonwebtoken')
 var userFiles = require('./utils')
+var path = require('path');
 
 var get_ip = require("ipware")().get_ip;
 var requestCountry = require("request-country");
@@ -20,6 +21,9 @@ const port = process.env.PORT || 5001;
 const UBUNTU_PASS = "marzie78";
 
 const app = express();
+var htmlPath = path.join(__dirname, 'html');
+app.use(express.static(htmlPath));
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 // app.use(passport.session());
@@ -151,7 +155,7 @@ passport.use(
   )
 );
 
-app.get("/log/combos", (req, res) => {
+app.get("/api/log/combos", (req, res) => {
   db.serialize(function () {
     db.all(
       "select * from (select username, password, count(password) AS count from log group by 1,2 ORDER BY COUNT(username) DESC)",
@@ -165,7 +169,7 @@ app.get("/log/combos", (req, res) => {
   });
 });
 
-app.get("/file",passport.authenticate("jwt", { session: false }), (req, res) => {
+app.get("/api/file",passport.authenticate("jwt", { session: false }), (req, res) => {
   exec(
     `sudo getfacl -Rs files`,
     (error, stdout, stderr) => {
@@ -193,7 +197,7 @@ app.get("/file",passport.authenticate("jwt", { session: false }), (req, res) => 
     })
 });
 
-app.get("/log/username", (req, res) => {
+app.get("/api/log/username", (req, res) => {
   db.serialize(function () {
     db.all(
       "select * from (select username, count(*) as count from log group by 1 ORDER BY COUNT(username) DESC)",
@@ -207,7 +211,7 @@ app.get("/log/username", (req, res) => {
   });
 });
 
-app.get("/log/password", (req, res) => {
+app.get("/api/log/password", (req, res) => {
   db.serialize(function () {
     db.all(
       "select * from (select password, count(*) as count from log group by 1 ORDER BY COUNT(username) DESC)",
@@ -221,7 +225,7 @@ app.get("/log/password", (req, res) => {
   });
 });
 
-app.get("/log/total", (req, res) => {
+app.get("/api/log/total", (req, res) => {
   db.serialize(function () {
     db.all("SELECT count(*) FROM log", function (err, data) {
       if (err) {
@@ -232,7 +236,7 @@ app.get("/log/total", (req, res) => {
   });
 });
 
-app.get("/log/last", (req, res) => {
+app.get("/api/log/last", (req, res) => {
   db.serialize(function () {
     db.all("SELECT * FROM log ORDER BY id DESC LIMIT 1;", function (err, data) {
       if (err) {
@@ -244,7 +248,7 @@ app.get("/log/last", (req, res) => {
 });
 
 app.get(
-  "/log/country",
+  "/api/log/country",
   (req, res) => {
     db.serialize(function () {
       db.all(
@@ -260,7 +264,7 @@ app.get(
   }
 );
 
-app.post("/login", function (req, res, next) {
+app.post("/api/login", function (req, res, next) {
   passport.authenticate("local", async (err, user, info) => {
     try {
       if (err || !user) {
@@ -299,7 +303,7 @@ app.post("/login", function (req, res, next) {
   })(req, res, next);
 });
 
-app.get("/create", (req, res) => {
+app.get("/api/create", (req, res) => {
   let logItem = [
     "username",
     "password",
@@ -322,7 +326,7 @@ app.get("/create", (req, res) => {
   });
 });
 
-app.get("/table", (req, res) => {
+app.get("/api/table", (req, res) => {
   db.serialize(function () {
     db.run(
       "CREATE TABLE log ('id' INTEGER PRIMARY KEY AUTOINCREMENT, 'username' VARCHAR(255) NOT NULL, 'password' VARCHAR(255) NOT NULL, 'ip' VARCHAR(255) NOT NULL, 'country' VARCHAR(255) NOT NULL, 'date' DATETIME(6) NOT NULL)",
@@ -337,7 +341,7 @@ app.get("/table", (req, res) => {
   });
 });
 
-app.get("/", (req, res) => {
+app.get("/api/", (req, res) => {
   db.serialize(function () {
     db.all("SELECT * FROM log", function (err, data) {
       res.json({ data: data });
@@ -346,6 +350,9 @@ app.get("/", (req, res) => {
   // res.send("Hello World");
   //   console.log(req.sessionID);
 });
+app.get("/", (req, res) => {
+  res.redirect('/login');
+})
 
 //listen for request on port 3000, and as a callback function have the port listened on logged
 
